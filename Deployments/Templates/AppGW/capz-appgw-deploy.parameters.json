@@ -1,0 +1,22 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+    "contentVersion": "1.0.0.0",    
+    "parameters": {        
+      "certData": {
+          "reference": {
+              "keyVault": {
+                  "id": "/subscriptions/6bdcc705-8db6-4029-953a-e749070e6db6/resourceGroups/capz-workshop-rg/providers/Microsoft.KeyVault/vaults/capzkeyv"
+                },
+            "secretName": "capz-workshop-cluster-secret"
+        }
+      },
+      "certPassword": {
+          "reference": {
+              "keyVault": {
+                  "id": "/subscriptions/6bdcc705-8db6-4029-953a-e749070e6db6/resourceGroups/capz-workshop-rg/providers/Microsoft.KeyVault/vaults/capzkeyv"
+                },
+            "secretName": "capz-workshop-cluster-password"
+        }
+      }      
+    }
+  }

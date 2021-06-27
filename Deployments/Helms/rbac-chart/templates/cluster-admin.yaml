@@ -1,0 +1,17 @@
+{{if not (lookup "rbac.authorization.k8s.io/v1" "ClusterRoleBinding" "" "capz-cluster-admin-bindings") }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ .Values.clusteradmin.name }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ .Values.clusteradmin.roleName }}
+{{- range $subject := .Values.clusteradmin.subjects }}
+subjects:
+- name: {{ $subject.name}}
+  namespace: {{ $subject.namespace}}
+  kind: {{ $subject.kind}}
+{{- end }}
+{{ end }}
+

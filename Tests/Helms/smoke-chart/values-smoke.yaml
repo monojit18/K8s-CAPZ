@@ -1,0 +1,36 @@
+deployment:
+  name: nginx-deploy
+  namespace: smoke
+  labels:
+    app: nginx-deploy
+  selectorLabels:
+    app: nginx-pod
+  replicas: 1
+  strategyType: RollingUpdate
+  maxSurge: 1
+  maxUnavailable: 0
+  nodeSelector:
+    agentpool: capzapipool
+  imagePullSecrets:
+  - name: capz-acr-secret
+  containers:
+  - name: nginx-app
+    image: capzacr.azurecr.io/nginx:alpine
+    imagePullPolicy: IfNotPresent
+    memoryRequest: "250Mi"
+    cpuRequest: "100m"
+    memoryLimit: "500Mi"
+    cpuLimit: "200m"
+    containerPorts: [80]    
+service:
+  name: nginx-svc
+  namespace: smoke
+  selector:
+    app: nginx-pod
+  type: ClusterIP
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 80  
+    
+    

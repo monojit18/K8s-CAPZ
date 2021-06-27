@@ -1,0 +1,40 @@
+{{ $ingress := .Values.ingress }}
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+  name: {{ $ingress.name }}    
+  namespace: {{ $ingress.namespace }}  
+  annotations:
+    kubernetes.io/ingress.class: {{ $ingress.annotations.ingressClass }}
+    nginx.ingress.kubernetes.io/rewrite-target: {{ $ingress.annotations.rewriteTarget }}
+    nginx.ingress.kubernetes.io/enable-cors: {{ $ingress.annotations.enableCors | quote }}
+  {{ if $ingress.proxyBodySize }}
+    nginx.ingress.kubernetes.io/proxy-body-size: {{ $ingress.annotations.proxyBodySize | quote }}
+  {{ end }}
+spec:
+  rules:
+  {{- range $host := $ingress.hosts }}
+  - host: {{ $host.name}}
+    http:
+      paths:
+      {{- range $path := $host.paths }}
+      - path: {{ $path.path }}
+        backend:
+          serviceName: {{ $path.service }}
+          servicePort: {{ $path.port }}
+      {{- end }}
+  {{- end }}
+  {{ if $ingress.tls }}
+  tls:
+  {{- range $tls := $ingress.tls }}
+  - hosts:
+    {{- range $tlsHost := $tls.hosts }}
+    - {{ $tlsHost | quote }}
+    {{- end }}
+    secretName: {{ $tls.secretName }}
+  {{- end }}
+  {{ end }}
+
+
+  
+

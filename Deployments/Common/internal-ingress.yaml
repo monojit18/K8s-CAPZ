@@ -1,0 +1,12 @@
+controller:
+  replicaCount: 2 
+  nodeSelector:
+   agentpool: capzsyspool
+  defaultBackend:
+    nodeSelector:      
+      agentpool: capzsyspool
+  service:
+    loadBalancerIP: 16.0.3.100
+    annotations:
+      service.beta.kubernetes.io/azure-load-balancer-internal: "true"
+      service.beta.kubernetes.io/azure-load-balancer-internal-subnet: "capz-ingress-subnet"

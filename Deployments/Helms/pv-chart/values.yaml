@@ -1,0 +1,12 @@
+persistentVolume:
+  name: capz-mongo-pv
+  storageCapacity: 20Gi
+  accessModes:
+  - ReadWriteOnce
+  azureDisk:
+    kind: Managed
+    diskName: mongoDisk
+    diskURI: "/subscriptions/6bdcc705-8db6-4029-953a-e749070e6db6/resourceGroups/capz-workshop-rg/providers/Microsoft.Compute/disks/mongoDisk"  
+    cachingMode: ReadWrite  
+    fsType: ext4  
+    readOnly: false 

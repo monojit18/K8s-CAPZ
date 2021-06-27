@@ -1,0 +1,44 @@
+clusteradmin:
+  name: capz-cluster-admin-bindings
+  roleName: cluster-admin
+  subjects:
+  - kind: ServiceAccount
+    name: capz-ca-sa
+    namespace: default
+
+developer:
+  roleName: capz-workshop-developer-roles
+  roleNamespace: smoke
+  rules:  
+  - apiGroups: ["", "apps"]
+    resources: ["pods", "pods/exec", "pods/log", "services", "deployments", "replicasets", "statefulsets", "daemonsets"]
+    verbs: ["create", "delete", "deletecollection", "get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["configmaps", "events", "namespaces", "nodes"]
+    verbs: ["get", "list"]
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["ingresses", "networkpolicies"]
+    verbs: ["get", "list"]
+  bindingName: capz-workshop-developer-rb
+  bindingNamespace: smoke
+  subjects:
+  - kind: ServiceAccount
+    name: capz-developer-sa
+    namespace: default
+
+manager:
+  roleName: capz-workshop-manager-roles
+  roleNamespace: smoke
+  rules:
+  - apiGroups: ["", "apiextensions.k8s.io", "apps", "autoscaling", "batch", "events.k8s.io", "networking.k8s.io", "policy", "rbac.authorization.k8s.io", "scheduling.k8s.io"]
+    resources: ["configmaps", "endpoints", "events", "limitranges", "persistentvolumeclaims", "pods", "resourcequotas", "serviceaccounts", "namespaces", "services", "customresourcedefinitions", "daemonsets", "deployments", "replicasets", "statefulsets", "horizontalpodautoscalers", "cronjobs", "jobs", "events", "ingresses", "networkpolicies", "poddisruptionbudgets", "rolebindings", "roles", "priorityclasses"]
+    verbs: ["create", "delete", "deletecollection", "get", "list", "watch"]
+  - apiGroups: ["metrics.k8s.io"]
+    resources: ["nodes", "pods"]
+    verbs: ["get", "list", "watch"]
+  bindingName: capz-workshop-manager-rb
+  bindingNamespace: smoke
+  subjects:
+  - kind: ServiceAccount
+    name: capz-manager-sa
+    namespace: default
