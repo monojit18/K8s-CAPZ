@@ -1,0 +1,11 @@
+persistentVolume:
+  name: capz-arc-pv
+  storageCapacity: 100Gi
+  storageClassName: "default"
+  accessModes:
+  - ReadWriteOnce
+  azureFile:
+    secretName: capz-workshop-fs-secret
+    secretNamespace: capz-workshop-cluster-appsvc-ns
+    shareName: capz-workshop-fs
+    readOnly: false

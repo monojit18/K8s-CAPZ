@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: {{ .Values.persistentVolume.name }}
+spec:
+  capacity:
+    storage: {{ .Values.persistentVolume.storageCapacity }}
+  {{ if .Values.persistentVolume.storageClassName }}
+  storageClassName: {{ .Values.persistentVolume.storageClassName }}
+  {{ end }}
+  {{- range $accessMode := .Values.persistentVolume.accessModes }}
+  accessModes:
+  - {{ $accessMode }}
+  {{- end }}
+  {{ if .Values.persistentVolume.azureDisk }}
+  azureDisk:
+  {{ toYaml .Values.persistentVolume.azureDisk | nindent 4 }} 
+  {{ end }}
+  {{ if .Values.persistentVolume.azureFile }}
+  azureFile:
+  {{ toYaml .Values.persistentVolume.azureFile | nindent 4 }} 
+  {{ end }}

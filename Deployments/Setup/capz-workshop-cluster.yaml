@@ -12,7 +12,7 @@ spec:
       - 16.244.0.0/16
     services:
       cidrBlocks:
-      - 16.0.2.0/24
+      - 16.0.3.0/24
   controlPlaneRef:
     apiVersion: controlplane.cluster.x-k8s.io/v1alpha3
     kind: KubeadmControlPlane
@@ -29,7 +29,7 @@ metadata:
   namespace: default
 spec:
   location: eastus
-  networkSpec:    
+  networkSpec:
     vnet:
       name: capz-workshop-cluster-vnet
       cidrBlocks:
@@ -44,7 +44,10 @@ spec:
       cidrBlocks:
       - 16.0.1.0/24
     apiServerLB:
-      type: Public      
+      type: Public
+      # frontendIPs:
+      # - name: lb-private-ip-frontend
+      #   privateIP: 16.0.0.100
   resourceGroup: capz-workshop-rg
   subscriptionID: 6bdcc705-8db6-4029-953a-e749070e6db6
 ---
@@ -63,7 +66,7 @@ spec:
       apiServer:
         extraArgs:
           cloud-config: /etc/kubernetes/azure.json
-          cloud-provider: azure          
+          cloud-provider: azure
         extraVolumes:
         - hostPath: /etc/kubernetes/azure.json
           mountPath: /etc/kubernetes/azure.json
@@ -137,12 +140,12 @@ spec:
   template:
     spec:
       dataDisks:
-      - diskSizeGB: 200
+      - diskSizeGB: 256
         lun: 0
         nameSuffix: etcddisk
       location: eastus
       osDisk:
-        diskSizeGB: 100
+        diskSizeGB: 128
         managedDisk:
           storageAccountType: Premium_LRS
         osType: Linux
@@ -189,6 +192,7 @@ spec:
         osType: Linux
       sshPublicKey: ""
       vmSize: Standard_DS3_v2
+
 ---
 apiVersion: cluster.x-k8s.io/v1alpha3
 kind: MachineDeployment
@@ -199,14 +203,14 @@ spec:
   clusterName: capz-workshop-cluster
   replicas: 2
   selector:
-    matchLabels: null      
+    matchLabels: null
   template:
     spec:
       bootstrap:
         configRef:
           apiVersion: bootstrap.cluster.x-k8s.io/v1alpha3
           kind: KubeadmConfigTemplate
-          name: capz-workshop-cluster-md-0
+          name: capz-workshop-cluster-md-1
       clusterName: capz-workshop-cluster
       infrastructureRef:
         apiVersion: infrastructure.cluster.x-k8s.io/v1alpha3
@@ -224,7 +228,7 @@ spec:
     spec:
       location: eastus
       osDisk:
-        diskSizeGB: 200
+        diskSizeGB: 100
         managedDisk:
           storageAccountType: Premium_LRS
         osType: Linux
@@ -244,6 +248,30 @@ spec:
           secret:
             key: worker-node-azure.json
             name: capz-workshop-cluster-md-0-azure-json
+        owner: root:root
+        path: /etc/kubernetes/azure.json
+        permissions: "0644"
+      joinConfiguration:
+        nodeRegistration:
+          kubeletExtraArgs:
+            cloud-config: /etc/kubernetes/azure.json
+            cloud-provider: azure
+          name: '{{ ds.meta_data["local_hostname"] }}'
+      useExperimentalRetryJoin: true
+---
+apiVersion: bootstrap.cluster.x-k8s.io/v1alpha3
+kind: KubeadmConfigTemplate
+metadata:
+  name: capz-workshop-cluster-md-1
+  namespace: default
+spec:
+  template:
+    spec:
+      files:
+      - contentFrom:
+          secret:
+            key: worker-node-azure.json
+            name: capz-workshop-cluster-md-1-azure-json
         owner: root:root
         path: /etc/kubernetes/azure.json
         permissions: "0644"

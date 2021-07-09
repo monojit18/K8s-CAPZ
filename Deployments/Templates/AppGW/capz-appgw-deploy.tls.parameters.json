@@ -5,25 +5,25 @@
         "rootCertData": {
           "reference": {
               "keyVault": {
-                  "id": "/subscriptions/6bdcc705-8db6-4029-953a-e749070e6db6/resourceGroups/aks-wkshpprv-rg/providers/Microsoft.KeyVault/vaults/aks-wkshpprv-kv"
+                  "id": "/subscriptions/6bdcc705-8db6-4029-953a-e749070e6db6/resourceGroups/capz-workshop-rg/providers/Microsoft.KeyVault/vaults/capz-workshop-kv"
                 },
-            "secretName": "aks-wkshpprv-appgw-root-cert-secret"
+            "secretName": "capz-workshop-appgw-root-cert-secret"
         }
       },
         "certData": {
           "reference": {
               "keyVault": {
-                  "id": "/subscriptions/6bdcc705-8db6-4029-953a-e749070e6db6/resourceGroups/aks-wkshpprv-rg/providers/Microsoft.KeyVault/vaults/aks-wkshpprv-kv"
+                  "id": "/subscriptions/6bdcc705-8db6-4029-953a-e749070e6db6/resourceGroups/capz-workshop-rg/providers/Microsoft.KeyVault/vaults/capz-workshop-kv"
                 },
-            "secretName": "aks-wkshpprv-appgw-cert-secret"
+            "secretName": "capz-workshop-cluster-secret"
         }
       },
       "certPassword": {
           "reference": {
               "keyVault": {
-                  "id": "/subscriptions/6bdcc705-8db6-4029-953a-e749070e6db6/resourceGroups/aks-wkshpprv-rg/providers/Microsoft.KeyVault/vaults/aks-wkshpprv-kv"
+                  "id": "/subscriptions/6bdcc705-8db6-4029-953a-e749070e6db6/resourceGroups/capz-workshop-rg/providers/Microsoft.KeyVault/vaults/capz-workshop-kv"
                 },
-            "secretName": "aks-wkshpprv-appgw-cert-password"
+            "secretName": "capz-workshop-cluster-secret-password"
         }
       }
     }

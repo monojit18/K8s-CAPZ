@@ -6,7 +6,7 @@ controller:
     nodeSelector:      
       agentpool: capzsyspool
   service:
-    loadBalancerIP: 16.0.3.100
+    loadBalancerIP: 16.0.2.100
     annotations:
       service.beta.kubernetes.io/azure-load-balancer-internal: "true"
-      service.beta.kubernetes.io/azure-load-balancer-internal-subnet: "capz-ingress-subnet"
+      service.beta.kubernetes.io/azure-load-balancer-internal-subnet: "capz-worker-ingress-subnet"

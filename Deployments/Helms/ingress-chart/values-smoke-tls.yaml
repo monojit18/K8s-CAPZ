@@ -1,0 +1,18 @@
+ingress:
+  name: smoke-ingress
+  namespace: smoke
+  annotations:
+   ingressClass: nginx
+   enableCors: "true"
+   rewriteTarget: /$1
+  tls:
+  - hosts:
+    - "*.internal.wkshpdev.com"
+    secretName: capz-workshop-tls-secret
+  hosts:
+  - name: capz-smoke.internal.wkshpdev.com
+    paths:
+    - path: /nginx/?(.*)
+      service: nginx-svc
+      port: 80
+  

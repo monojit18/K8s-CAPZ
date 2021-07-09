@@ -1,2 +1,5 @@
 Misc/**
 Deployments/Certs/**
+*.kubeconfig
+*.kubeconfig
+Deployments/Setup/capz-workshop-cluster.kubeconfig

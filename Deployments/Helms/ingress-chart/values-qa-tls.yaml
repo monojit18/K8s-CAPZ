@@ -1,0 +1,19 @@
+ingress:
+  name: capz-workshop-ingress
+  namespace: capz-workshop-qa
+  annotations:
+    ingressClass: nginx
+    proxyBodySize: "10m"
+    enableCors: "true"
+    rewriteTarget: /$1
+  tls:
+  - hosts:
+    - "*.internal.wkshpdev.com"
+    secretName: capz-workshop-tls-secret
+  hosts:
+  - name: capz-qa.internal.wkshpdev.com
+    paths:
+    - path: /?(.*)
+      service: ratingsweb-service
+      port: 80 
+  
