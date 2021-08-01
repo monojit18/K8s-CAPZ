@@ -1,6 +1,6 @@
 persistentVolume:
-  name: capz-arc-pv
-  storageCapacity: 100Gi
+  name: capz-arc-eg-pv
+  storageCapacity: 15Gi
   storageClassName: default
   accessModes:
   - ReadWriteOnce

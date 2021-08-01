@@ -3,35 +3,35 @@ kind: Cluster
 metadata:
   labels:
     cni: calico
-  name: capz-workshop-cluster
+  name: capz-k8s-cluster
   namespace: default
 spec:
   clusterNetwork:
     pods:
       cidrBlocks:
-      - 16.244.0.0/16
+      - 16.1.0.0/16
     services:
       cidrBlocks:
-      - 16.0.3.0/24
+      - 16.0.2.0/24
   controlPlaneRef:
     apiVersion: controlplane.cluster.x-k8s.io/v1alpha3
     kind: KubeadmControlPlane
-    name: capz-workshop-cluster-control-plane
+    name: capz-k8s-cluster-control-plane
   infrastructureRef:
     apiVersion: infrastructure.cluster.x-k8s.io/v1alpha3
     kind: AzureCluster
-    name: capz-workshop-cluster
+    name: capz-k8s-cluster
 ---
 apiVersion: infrastructure.cluster.x-k8s.io/v1alpha3
 kind: AzureCluster
 metadata:
-  name: capz-workshop-cluster
+  name: capz-k8s-cluster
   namespace: default
 spec:
   location: eastus
   networkSpec:
     vnet:
-      name: capz-workshop-cluster-vnet
+      name: capz-k8s-cluster-vnet
       cidrBlocks:
       - 16.0.0.0/21
     subnets:
@@ -43,24 +43,19 @@ spec:
       role: node
       cidrBlocks:
       - 16.0.1.0/24
-    apiServerLB:
-      type: Public
-      # frontendIPs:
-      # - name: lb-private-ip-frontend
-      #   privateIP: 16.0.0.100
-  resourceGroup: capz-workshop-rg
+  resourceGroup: capz-k8s-rg
   subscriptionID: 6bdcc705-8db6-4029-953a-e749070e6db6
 ---
 apiVersion: controlplane.cluster.x-k8s.io/v1alpha3
 kind: KubeadmControlPlane
 metadata:
-  name: capz-workshop-cluster-control-plane
+  name: capz-k8s-cluster-control-plane
   namespace: default
 spec:
   infrastructureTemplate:
     apiVersion: infrastructure.cluster.x-k8s.io/v1alpha3
     kind: AzureMachineTemplate
-    name: capz-workshop-cluster-control-plane
+    name: capz-k8s-cluster-control-plane
   kubeadmConfigSpec:
     clusterConfiguration:
       apiServer:
@@ -78,7 +73,7 @@ spec:
           allocate-node-cidrs: "false"
           cloud-config: /etc/kubernetes/azure.json
           cloud-provider: azure
-          cluster-name: capz-workshop-cluster
+          cluster-name: capz-k8s-cluster
         extraVolumes:
         - hostPath: /etc/kubernetes/azure.json
           mountPath: /etc/kubernetes/azure.json
@@ -108,7 +103,7 @@ spec:
     - contentFrom:
         secret:
           key: control-plane-azure.json
-          name: capz-workshop-cluster-control-plane-azure-json
+          name: capz-k8s-cluster-control-plane-azure-json
       owner: root:root
       path: /etc/kubernetes/azure.json
       permissions: "0644"
@@ -134,7 +129,7 @@ spec:
 apiVersion: infrastructure.cluster.x-k8s.io/v1alpha3
 kind: AzureMachineTemplate
 metadata:
-  name: capz-workshop-cluster-control-plane
+  name: capz-k8s-cluster-control-plane
   namespace: default
 spec:
   template:
@@ -155,11 +150,11 @@ spec:
 apiVersion: cluster.x-k8s.io/v1alpha3
 kind: MachineDeployment
 metadata:
-  name: capz-workshop-cluster-md-0
+  name: capz-k8s-cluster-md-0
   namespace: default
 spec:
-  clusterName: capz-workshop-cluster
-  replicas: 2
+  clusterName: capz-k8s-cluster
+  replicas: 3
   selector:
     matchLabels: null
   template:
@@ -168,67 +163,25 @@ spec:
         configRef:
           apiVersion: bootstrap.cluster.x-k8s.io/v1alpha3
           kind: KubeadmConfigTemplate
-          name: capz-workshop-cluster-md-0
-      clusterName: capz-workshop-cluster
+          name: capz-k8s-cluster-md-0
+      clusterName: capz-k8s-cluster
       infrastructureRef:
         apiVersion: infrastructure.cluster.x-k8s.io/v1alpha3
         kind: AzureMachineTemplate
-        name: capz-workshop-cluster-md-0
+        name: capz-k8s-cluster-md-0
       version: v1.18.19
 ---
 apiVersion: infrastructure.cluster.x-k8s.io/v1alpha3
 kind: AzureMachineTemplate
 metadata:
-  name: capz-workshop-cluster-md-0
+  name: capz-k8s-cluster-md-0
   namespace: default
 spec:
   template:
     spec:
       location: eastus
       osDisk:
-        diskSizeGB: 100
-        managedDisk:
-          storageAccountType: Premium_LRS
-        osType: Linux
-      sshPublicKey: ""
-      vmSize: Standard_DS3_v2
-
----
-apiVersion: cluster.x-k8s.io/v1alpha3
-kind: MachineDeployment
-metadata:
-  name: capz-workshop-cluster-md-1
-  namespace: default
-spec:
-  clusterName: capz-workshop-cluster
-  replicas: 2
-  selector:
-    matchLabels: null
-  template:
-    spec:
-      bootstrap:
-        configRef:
-          apiVersion: bootstrap.cluster.x-k8s.io/v1alpha3
-          kind: KubeadmConfigTemplate
-          name: capz-workshop-cluster-md-1
-      clusterName: capz-workshop-cluster
-      infrastructureRef:
-        apiVersion: infrastructure.cluster.x-k8s.io/v1alpha3
-        kind: AzureMachineTemplate
-        name: capz-workshop-cluster-md-1
-      version: v1.18.19
----
-apiVersion: infrastructure.cluster.x-k8s.io/v1alpha3
-kind: AzureMachineTemplate
-metadata:
-  name: capz-workshop-cluster-md-1
-  namespace: default
-spec:
-  template:
-    spec:
-      location: eastus
-      osDisk:
-        diskSizeGB: 100
+        diskSizeGB: 128
         managedDisk:
           storageAccountType: Premium_LRS
         osType: Linux
@@ -238,7 +191,7 @@ spec:
 apiVersion: bootstrap.cluster.x-k8s.io/v1alpha3
 kind: KubeadmConfigTemplate
 metadata:
-  name: capz-workshop-cluster-md-0
+  name: capz-k8s-cluster-md-0
   namespace: default
 spec:
   template:
@@ -247,31 +200,7 @@ spec:
       - contentFrom:
           secret:
             key: worker-node-azure.json
-            name: capz-workshop-cluster-md-0-azure-json
-        owner: root:root
-        path: /etc/kubernetes/azure.json
-        permissions: "0644"
-      joinConfiguration:
-        nodeRegistration:
-          kubeletExtraArgs:
-            cloud-config: /etc/kubernetes/azure.json
-            cloud-provider: azure
-          name: '{{ ds.meta_data["local_hostname"] }}'
-      useExperimentalRetryJoin: true
----
-apiVersion: bootstrap.cluster.x-k8s.io/v1alpha3
-kind: KubeadmConfigTemplate
-metadata:
-  name: capz-workshop-cluster-md-1
-  namespace: default
-spec:
-  template:
-    spec:
-      files:
-      - contentFrom:
-          secret:
-            key: worker-node-azure.json
-            name: capz-workshop-cluster-md-1-azure-json
+            name: capz-k8s-cluster-md-0-azure-json
         owner: root:root
         path: /etc/kubernetes/azure.json
         permissions: "0644"

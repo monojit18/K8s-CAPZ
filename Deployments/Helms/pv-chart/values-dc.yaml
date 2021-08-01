@@ -1,5 +1,5 @@
 persistentVolume:
-  name: capz-arc-pv
+  name: capz-arc-dc-pv
   storageCapacity: 100Gi
   storageClassName: default
   accessModes:
