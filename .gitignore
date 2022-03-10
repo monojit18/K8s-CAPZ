@@ -1,3 +1,5 @@
+!.gitignore
+!README.md
 Misc/**
 Deployments/Certs/**
 *.kubeconfig
@@ -5,3 +7,4 @@ Deployments/Certs/**
 Deployments/Setup/capz-workshop-cluster.kubeconfig
 *.kubeconfig
 Deployments/Setup/capz-workshop-cluster.kubeconfig
+Deployments/Setup/log.txt
