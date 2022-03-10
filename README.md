@@ -1,6 +1,6 @@
 # Managing the UnManaged K8s - CAPZ for rescue!
 
-
+![capz-high-level](./Assets/capz-high-level.png)
 
 ## Introduction
 
@@ -495,7 +495,31 @@ helm-capz install ingress-chart -n smoke $baseFolderPath/Helms/ingress-chart/ -f
 
 
 
+#### SSL Options
+
+![k8s-capz-ssl](./Assets/k8s-capz-ssl.png)
+
+
+
+![capz-appgw-ssl1](./Assets/capz-appgw-ssl1.png)
+
+
+
+![capz-appgw-ssl1](./Assets/capz-appgw-ssl-passthru.png)
+
+
+
+![capz-appgw-ssl1](./Assets/capz-appgw-ssl-bkproto.png)
+
+
+
 #### Deploy & Configure Application Gateway
+
+![k8s-capz-appgw-flow](./Assets/k8s-capz-appgw-flow.png)
+
+
+
+![k8s-capz-appgw-flow](./Assets/k8s-capz-appgw-combined.png)
 
 - Deploy Application Gateway either from Portal or through ARM/Bicep template
 - This article does not provide details of how to configure Application Gateway to work with K8s cluster in the backend
