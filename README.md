@@ -151,6 +151,7 @@ az aks get-credentials -g $aksResourceGroup --name $aksClusterName --admin --ove
 ```bash
 capzResourceGroup=capz-k8s-rg
 capzClusterName=capz-k8s-cluster
+capzVersion="1.22.4"
 capzVnetName=capz-k8s-cluster-vnet
 capzVnetPrefix=16.0.0.0/21
 capzVnetId=
@@ -263,19 +264,251 @@ az network vnet peering create -g $capzResourceGroup --remote-vnet $aksVnetId --
 # CAPZ Clsuter VNET to Management Cluster VNET
 az network vnet peering create -g $aksResourceGroup --remote-vnet $capzVnetId --vnet-name $aksVnetName -n $aksCapzPeering --allow-vnet-access
 
+# NSG for controlPlane VNET (Needed for Custom VNet options)
+az network nsg create -n $capzMasterNSGName -g $capzResourceGroup
+az network nsg rule create -n "allow_ssh" --nsg-name $capzMasterNSGName -g $capzResourceGroup --priority 100 --access "Allow" --direction "InBound" --source-address-prefixes "*" --source-port-ranges "*" --destination-address-prefixes "*" --destination-port-ranges "22" --description "Allow SSH"
+az network nsg rule create -n "allow_apiserver" --nsg-name $capzMasterNSGName -g $capzResourceGroup --priority 101 --access "Allow" --direction "InBound" --source-address-prefixes "*" --source-port-ranges "*" --destination-address-prefixes "*" --destination-port-ranges "6443" --description "Allow K8s API Server"
+az network nsg rule create -n "allow_coredns"  --nsg-name $capzMasterNSGName -g $capzResourceGroup --access "Allow" --direction "Inbound" --priority 102 --destination-port-ranges 8181 --description "Allow CoreDNS"
+az network vnet subnet update -g $capzResourceGroup -n $capzMasterSubnetName --vnet-name $capzVnetName --network-security-group $capzMasterNSGName
+
+az network nsg create -n $capzWorkerNSGName -g $capzResourceGroup
+az network vnet subnet update -g $capzResourceGroup -n $capzWorkerSubnetName --vnet-name $capzVnetName --network-security-group $capzWorkerNSGName
+```
+
+
+
+#### Deploy Azure Container Registry (ACR)
+
+```bash
+# Create ACR and Role assignment
+
+az acr create -n $capzACRName -g $capzResourceGroup --sku Standard --admin-enabled false
+acrId=$(az acr show -n $capzACRName -g $capzResourceGroup --query="id" -o tsv)
+az role assignment create --role=AcrPull --assignee=$capzSPAppId --scope=$acrId
+
+# Import Test images into ACR
+az acr import -n $capzACRName --source docker.io/library/nginx:alpine -t nginx:alpine
+```
+
+
+
+#### Deploy Azure KeyVault
+
+```bash
+# This is not used by the example here in this article; but it is good to have it as a Best practice
+# All Secrets would be stored in KeyVault
+
+# Create KeyVault and Access Policy
+
+az keyvault create -n $capzKeyVaultName -g $capzResourceGroup --sku Standard
+objectId=$(az ad user show --id modatta@microsoft.com --query="objectId" -o tsv)
+
+az keyvault set-policy -n $capzKeyVaultName -g $capzResourceGroup --key-permissions get list update create delete \
+--secret-permissions get list set delete --certificate-permissions get list update create delete \
+--object-id $objectId
+
+keyvaultId=$(az keyvault show -n $capzKeyVaultName -g $capzResourceGroup --query="id" -o tsv)
 ```
 
 
 
 #### Deploy CAPZ Cluster
 
+```bash
+# ENV variables needed by CAPZ installation
+
+export AZURE_SUBSCRIPTION_ID=$subscriptionId
+export AZURE_TENANT_ID=$tenantId
+export AZURE_CLIENT_ID=$capzSPAppId
+export AZURE_CLIENT_SECRET=$capzSPPassword
+export AZURE_ENVIRONMENT="AzurePublicCloud"
+export AZURE_CONTROL_PLANE_MACHINE_TYPE="Standard_D2s_v3"
+export AZURE_NODE_MACHINE_TYPE="Standard_D4s_v3"
+export AZURE_LOCATION="eastus"
+
+export AZURE_SUBSCRIPTION_ID_B64="$(echo -n "$AZURE_SUBSCRIPTION_ID" | base64 | tr -d '\n')"
+export AZURE_TENANT_ID_B64="$(echo -n "$AZURE_TENANT_ID" | base64 | tr -d '\n')"
+export AZURE_CLIENT_ID_B64="$(echo -n "$AZURE_CLIENT_ID" | base64 | tr -d '\n')"
+export AZURE_CLIENT_SECRET_B64="$(echo -n "$AZURE_CLIENT_SECRET" | base64 | tr -d '\n')"
+
+export AZURE_CLUSTER_IDENTITY_SECRET_NAME="cluster-identity-secret"
+export CLUSTER_IDENTITY_NAME="cluster-identity"
+export AZURE_CLUSTER_IDENTITY_SECRET_NAMESPACE="default"
+
+# Cluster Identity Secret
+kubectl create secret generic "${AZURE_CLUSTER_IDENTITY_SECRET_NAME}" --from-literal=clientSecret="${AZURE_CLIENT_SECRET}"
+
+# Role Assignment
+az role assignment create --role=Contributor --assignee=$capzSPAppId 
+--scope=/subscriptions/$AZURE_SUBSCRIPTION_ID
+
+# Initialize the Azure Provider
+clusterctl init --infrastructure azure
+
+# Workload cluster config
+# Change valeus as necessary
+clusterctl generate cluster $capzClusterName --kubernetes-version $capzVersion --control-plane-machine-count=1 --worker-machine-count=2 > capz-k8s-cluster-public.yaml
+
+# Deploy the CAPZ clsuter
+kubectl apply -f ./capz-k8s-cluster-public.yaml
+
+# Check status of Workload cluster creation
+kubectl get cluster --all-namespaces
+clusterctl describe cluster capz-k8s-cluster
+
+# Wait for this command to return all success
+kubectl get azuremachines
+
+apiServer=$(kubectl get azurecluster capz-k8s-cluster -o jsonpath='{.spec.controlPlaneEndpoint.host}')
+echo $apiServer
+```
+
+![capz-deploy-success](./Assets/capz-deploy-success.png)
+
+
+
 #### Post Configuration
+
+```bash
+# Get kubeconfig for CAPZ installation
+clusterctl get kubeconfig $capzClusterName > capz-k8s-cluster.kubeconfig
+alias k-capz="k --kubeconfig=$baseFolderPath/Setup/capz-k8s-cluster.kubeconfig"
+alias helm-capz="helm --kubeconfig=$baseFolderPath/Setup/capz-k8s-cluster.kubeconfig"
+
+# Install Calico n/w plugin
+k-capz apply -f https://raw.githubusercontent.com/kubernetes-sigs/cluster-api-provider-azure/master/templates/addons/calico.yaml
+
+# Add cluster Admin User, Context and make it the Current one
+k-capz config set-context $capzClusterName-admin@$capzClusterName --user $capzClusterName-admin \
+--cluster $capzClusterName
+k-capz config use-context $capzClusterName-admin@$capzClusterName
+```
+
+
 
 #### Connect to the Cluster
 
+```bash
+k-capz config get-contexts
+k-capz get no
+k-capz get po
+
+# Label Nodes
+k-capz label node/<node-name> agentpool=capzsyspool --overwrite
+k-capz label node/<node-name> agentpool=capzsyspool --overwrite
+
+# Create Namespaces
+k-capz create ns db
+k-capz create ns capz-workshop-dev
+k-capz create ns $capzIngControllerNSName
+k-capz create ns smoke
+```
+
+
+
+#### Configure CAPZ Cluster
+
+```bash
+# Create Other Users - 1 Cluster Admin, 1 Architect/Manager, 1 Developer
+k-capz create sa capz-ca-sa
+k-capz create sa capz-manager-sa
+k-capz create sa capz-developer-sa
+k-capz config get-contexts
+
+k-capz get secrets
+
+# Set Cluster Admin Context
+k-capz get secrets/<capz-ca-sa-secret_name> -o yaml
+token=$(echo <val> | base64 --decode)
+k-capz config set-credentials capz-ca-sa --token=$token
+k-capz config set-context capz-ca-sa-context --user capz-ca-sa --cluster $capzClusterName
+
+# Switch to Cluster Admin context
+k-capz config use-context capz-ca-sa-context
+
+# Set Manager Context
+k-capz get secrets/<capz-manager-sa-secret_name> -o yaml
+token2=$(echo <val> | base64 --decode)
+k-capz config set-credentials capz-manager-sa --token=$token2
+k-capz config set-context capz-manager-sa-context --user capz-manager-sa --cluster $capzClusterName
+
+# Switch to Manager context
+k-capz config use-context capz-manager-sa-context
+
+# Set Developer Context
+k-capz get secrets/<capz-developer-sa-secret_name> -o yaml
+token3=$(echo <val> | base64 --decode)
+k-capz config set-credentials capz-developer-sa --token=$token3
+k-capz config set-context capz-developer-sa-context --user capz-developer-sa --cluster $capzClusterName
+
+# Switch to Developer context
+k-capz config use-context capz-developer-sa-context
+```
+
+
+
 #### Deploy Tools & Services
 
+##### Storage Class
+
+```bash
+# Deploy Storage class
+helm create sc-chart
+helm-capz install sc-chart -n default $baseFolderPath/Helms/sc-chart/ -f $baseFolderPath/Helms/sc-chart/values.yaml
+
+# Deploy RBAC - DEV
+helm-capz install rbac-chart -n capz-workshop-dev $baseFolderPath/Helms/rbac-chart/ -f $baseFolderPath/Helms/rbac-chart/values-dev.yaml
+
+# Deploy RBAC - Smoke
+helm-capz install rbac-chart -n smoke $baseFolderPath/Helms/rbac-chart/ -f $baseFolderPath/Helms/rbac-chart/values-smoke.yaml
+```
+
+
+
+#### Ingress Controller
+
+```bash
+# Deploy Ingress - DEV
+k-capz create secret tls capz-workshop-tls-secret -n capz-workshop-dev --cert="$baseFolderPath/Certs/<cert-file-name>.pem" --key="$baseFolderPath/Certs/<cert-file-name>.key"
+
+helm-capz install ingress-chart -n capz-workshop-dev $baseFolderPath/Helms/ingress-chart/ -f $baseFolderPath/Helms/ingress-chart/values-dev-tls.yaml
+
+# Deploy Ingress - Smoke
+k-capz create secret tls capz-workshop-tls-secret -n smoke --cert="$baseFolderPath/Certs/<cert-file-name>.pem" --key="$baseFolderPath/Certs/<cert-file-name>.key"
+helm-capz install ingress-chart -n smoke $baseFolderPath/Helms/ingress-chart/ -f $baseFolderPath/Helms/ingress-chart/values-smoke.yaml
+```
+
+![capz-get-svc](./Assets/capz-get-svc.png)
+
+
+
+#### Deploy & Configure Application Gateway
+
+Backend pool points to Private IP of Ingress Controller
+
+![capz-appgw-bkpool](./Assets/capz-appgw-bkpool.png)
+
+
+
 #### Deploy Microservices
+
+##### Smoke
+
+```bash
+# Create Secrets for ACR - Smoke
+k-capz create secret docker-registry capz-acr-secret -n smoke --docker-server=$capzACRName.azurecr.io --docker-username=$capzSPAppId --docker-password=$capzSPPassword
+
+# Install Smoke chart - Smoke Namespace
+helm-capz install smoke-chart -n smoke $testFolderPath/Helms/smoke-chart/ -f $testFolderPath/Helms/smoke-chart/values-smoke.yaml
+```
+
+##### Ratings
+
+```
+
+```
+
+
 
 ### Cleanup
 
