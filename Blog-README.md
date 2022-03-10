@@ -376,6 +376,8 @@ apiServer=$(kubectl get azurecluster capz-k8s-cluster -o jsonpath='{.spec.contro
 echo $apiServer
 ```
 
+
+
 ![capz-deploy-success](./Assets/capz-deploy-success.png)
 
 
@@ -491,6 +493,8 @@ k-capz create secret tls capz-workshop-tls-secret -n smoke --cert="$baseFolderPa
 helm-capz install ingress-chart -n smoke $baseFolderPath/Helms/ingress-chart/ -f $baseFolderPath/Helms/ingress-chart/values-smoke.yaml
 ```
 
+
+
 ![capz-get-svc](./Assets/capz-get-svc.png)
 
 
@@ -498,11 +502,17 @@ helm-capz install ingress-chart -n smoke $baseFolderPath/Helms/ingress-chart/ -f
 #### Deploy & Configure Application Gateway
 
 - Deploy Application Gateway either from Portal or through ARM/Bicep template
+
 - This article does not provide details of how to configure Application Gateway to work with K8s cluster in the backend
+
 - Please refer these links for a detailed discussion
+
   - [Secure APIs on Azure with AKS and Application Gateway](https://codemongers.wordpress.com/2021/08/11/secure-apis-on-azure-with-aks-and-application-gateway/)
   - [Secure Microservices in AKS with APIM and Application Gateway](https://codemongers.wordpress.com/2022/01/28/secure-microservices-in-aks-with-apim-and-application-gateway/)
+
 - Backend pool points to Private IP of Ingress Controller
+
+  
 
 ![capz-appgw-bkpool](./Assets/capz-appgw-bkpool.png)
 
@@ -577,3 +587,12 @@ In Browser: http(s)://<application-gateway-public-ip-domain-name>/
 kubectl delete cluster $capzClusterName
 ```
 
+
+
+## References
+
+- [CAPZ Introduction](https://cluster-api.sigs.k8s.io/introduction.html)
+- [CAPZ Quick Start](https://cluster-api.sigs.k8s.io/user/quick-start.html)
+- [K8s docs](https://kubernetes.io/docs/home/)
+- [Secure APIs on Azure with AKS and Application Gateway](https://codemongers.wordpress.com/2021/08/11/secure-apis-on-azure-with-aks-and-application-gateway/)
+- [Secure Microservices in AKS with APIM and Application Gateway](https://codemongers.wordpress.com/2022/01/28/secure-microservices-in-aks-with-apim-and-application-gateway/)
