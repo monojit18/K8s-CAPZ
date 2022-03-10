@@ -501,7 +501,7 @@ helm-capz install ingress-chart -n smoke $baseFolderPath/Helms/ingress-chart/ -f
 
 
 
-![capz-appgw-ssl1](./Assets/capz-appgw-ssl1.png)
+![capz-appgw-ssl1](./Assets/capz-appgw-ssl.png)
 
 
 
@@ -601,3 +601,12 @@ In Browser: http(s)://<application-gateway-public-ip-domain-name>/
 kubectl delete cluster $capzClusterName
 ```
 
+
+
+## References
+
+- [CAPZ Introduction](https://cluster-api.sigs.k8s.io/introduction.html)
+- [CAPZ Quick Start](https://cluster-api.sigs.k8s.io/user/quick-start.html)
+- [K8s docs](https://kubernetes.io/docs/home/)
+- [Secure APIs on Azure with AKS and Application Gateway](https://codemongers.wordpress.com/2021/08/11/secure-apis-on-azure-with-aks-and-application-gateway/)
+- [Secure Microservices in AKS with APIM and Application Gateway](https://codemongers.wordpress.com/2022/01/28/secure-microservices-in-aks-with-apim-and-application-gateway/)
