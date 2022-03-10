@@ -1,11 +1,9 @@
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
-  name: azurefile
-provisioner: kubernetes.io/azure-file
+  name: managed-premium
+provisioner: kubernetes.io/azure-disk
 parameters:
-  skuName: Standard_LRS
-  location: eastus
-  storageAccount: capz-k8s-fs
-  secretName: capz-k8s-fs-secret
-  secretNamespace: capz-k8s-cluster-appsvc-ns  
+  storageaccounttype: Premium_LRS
+  kind: managed
+  resourceGroup: capz-k8s-rg

@@ -1,5 +1,5 @@
 {{ $ingress := .Values.ingress }}
-apiVersion: networking.k8s.io/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: {{ $ingress.name }}    
@@ -19,9 +19,12 @@ spec:
       paths:
       {{- range $path := $host.paths }}
       - path: {{ $path.path }}
+        pathType: {{ $path.pathType }}
         backend:
-          serviceName: {{ $path.service }}
-          servicePort: {{ $path.port }}
+          service:
+            name: {{ $path.service }}
+            port:
+              number: {{ $path.port }}        
       {{- end }}
   {{- end }}
   {{ if $ingress.tls }}

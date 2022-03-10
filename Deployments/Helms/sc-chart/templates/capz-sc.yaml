@@ -1,0 +1,12 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: {{ .Values.storageClass.name }}
+  labels:
+    kubernetes.io/cluster-service: "true"
+provisioner: {{ .Values.storageClass.provisioner }}
+parameters:
+  kind: Managed
+  storageaccounttype: {{ .Values.storageClass.storageaccounttype }}
+  cachingmode: {{ .Values.storageClass.cachingmode }}
+volumeBindingMode: {{ .Values.storageClass.volumeBindingMode }}

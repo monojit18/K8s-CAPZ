@@ -1,0 +1,559 @@
+Connect
+=======
+ssh master-js-ubuntuvm@13.82.230.239
+
+Switch to PowerShell
+====================
+
+Local variables
+================================
+tenantId=""
+subscriptionId=""
+masterResourceGroup="master-workshop-rg"
+masterVnetName="master-workshop-vnet"
+=========================================================================
+
+Prepare and Configure 
+==============================
+
+# Login to Azure
+az login --tenant $tenantId
+
+# Install Azure CLI
+curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+
+# Install PowerShell
+# Update the list of packages
+sudo apt-get update
+
+# Install pre-requisite packages.
+sudo apt-get install -y wget apt-transport-https software-properties-common
+
+# Download the Microsoft repository GPG keys
+wget -q https://packages.microsoft.com/config/ubuntu/16.04/packages-microsoft-prod.deb
+
+# Register the Microsoft repository GPG keys
+sudo dpkg -i packages-microsoft-prod.deb
+
+# Update the list of packages after we added packages.microsoft.com
+sudo apt-get update
+
+# Install PowerShell
+sudo apt-get install -y powershell
+
+# Start PowerShell
+pwsh
+
+# Inatall Az Modules
+Install-Module -Name Az -AllowClobber
+Install-Module -Name Az.Network -AllowClobber
+
+# Inatall Kind
+curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.11.1/kind-linux-amd64
+chmod +x ./kind
+sudo mv ./kind /usr/local/bin
+
+# Inatall Docker
+# Update the apt package index and install packages to allow apt to use a repository over HTTPS
+sudo apt-get update
+sudo apt-get install \
+    apt-transport-https \
+    ca-certificates \
+    curl \
+    gnupg \
+    lsb-release
+
+
+# Add Docker’s official GPG key
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+
+# Set up the stable repository
+echo \
+  "deb [arch=amd64 signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu \
+  $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+
+# Update the apt package index and install Docker
+sudo apt-get update
+sudo apt-get install docker-ce docker-ce-cli containerd.io
+
+# Config Docker User
+sudo groupadd docker
+sudo usermod -aG docker $USER
+sudo systemctl restart docker
+
+# Inatall Kubectl
+curl -LO https://dl.k8s.io/release/v1.21.0/bin/linux/amd64/kubectl
+sudo install -o root -g root -m 0755 k /usr/local/bin/kubectl
+
+# Inatall Helm
+sudo snap install helm --classic
+
+OR,
+
+curl https://baltocdn.com/helm/signing.asc | sudo apt-key add -
+sudo apt-get install apt-transport-https --yes
+echo "deb https://baltocdn.com/helm/stable/debian/ all main" | sudo tee /etc/apt/sources.list.d/helm-stable-debian.list
+sudo apt-get update
+sudo apt-get install helm
+
+=========================================================================
+
+AKS - Management Cluster Variables
+======================================
+aksResourceGroup="aks-k8s-rg"
+location="eastus"
+aksClusterName="aks-k8s-cluster"
+version=1.21.9
+aksVnetName=aks-k8s-vnet
+aksVnetPrefix=19.0.0.0/22
+aksVnetId=
+aksSubnetName=aks-k8s-subnet
+aksSubnetPrefix=19.0.0.0/24
+aksSubnetId=
+sysNodeSize="Standard_DS2_v2"
+sysNodeCount=3
+maxSysPods=30
+networkPlugin=azure
+networkPolicy=azure
+sysNodePoolName=akscapzpool
+vmSetType=VirtualMachineScaleSets
+
+az ad sp create-for-rbac --skip-assignment -n https://aks-k8s-sp
+{
+  "appId": "",
+  "displayName": "https://aks-k8s-sp",
+  "password": "",
+  "tenant": ""
+}
+
+spAppId="<appId>"
+spPassword="<password>"
+
+az network vnet create -n $aksVnetName -g $aksResourceGroup --address-prefixes $aksVnetPrefix
+aksVnetId=$(az network vnet show -n $aksVnetName -g $aksResourceGroup --query="id" -o tsv)
+echo $aksVnetId
+
+az network vnet subnet create -n $aksSubnetName --vnet-name $aksVnetName -g $aksResourceGroup --address-prefixes $aksSubnetPrefix
+aksSubnetId=$(az network vnet subnet show -n $aksSubnetName --vnet-name $aksVnetName -g $aksResourceGroup --query="id" -o tsv)
+echo $aksSubnetId
+
+az role assignment create --assignee $spAppId --role "Network Contributor" --scope $aksVnetId
+az role assignment create --assignee $spAppId --role "Contributor" --scope "/subscriptions/$subscriptionId"
+
+#az aks create -g $aksResourceGroup -n $clusterName --enable-aad --generate-ssh-keys
+
+az aks create --name $aksClusterName \
+--resource-group $aksResourceGroup \
+--kubernetes-version $version --location $location \
+--vnet-subnet-id "$aksSubnetId" \
+--node-vm-size $sysNodeSize \
+--node-count $sysNodeCount --max-pods $maxSysPods \
+--service-principal $spAppId \
+--client-secret $spPassword \
+--network-plugin $networkPlugin --network-policy $networkPolicy \
+--nodepool-name $sysNodePoolName --vm-set-type $vmSetType \
+--generate-ssh-keys 
+
+az aks get-credentials -g $aksResourceGroup --name $aksClusterName --admin --overwrite
+k get no
+
+#az aks delete -g $aksResourceGroup -n $aksClusterName --yes
+
+========================================================================
+
+Deploy Kind - Management Cluster - Optional
+============================================
+
+kind create cluster
+k cluster-info --context kind-kind
+
+#kind delete cluster
+
+========================================================================
+
+CAPZ - Worker Cluster Variables
+===================================
+capzResourceGroup=capz-k8s-rg
+capzClusterName=capz-k8s-cluster
+capzVnetName=capz-k8s-cluster-vnet
+capzVnetPrefix=16.0.0.0/21
+capzVnetId=
+capzMasterSubnetName=capz-master-subnet
+capzMasterSubnetPrefix=16.0.0.0/24
+capzMasterSubnetId=
+capzWorkerSubnetName=capz-worker-subnet
+capzWorkerSubnetPrefix=16.0.1.0/24
+capzWorkerSubnetId=
+capzIngressSubnetName=capz-ingress-subnet
+capzIngressSubnetPrefix=16.0.2.0/24
+capzIngressSubnetId=
+capzAppgwSubnetName=capz-appgw-subnet
+capzAppgwSubnetPrefix=16.0.4.0/27
+capzAppgwSubnetId=
+capzMasterNSGName="capz-control-plane-nsg"
+capzworkerNSGName="$clusterName-node-nsg"
+aksCapzPeering="$aksVnetName-$capzVnetName-peering"
+capzAksPeering="$capzVnetName-$aksVnetName-peering"
+masterCapzPeering="$masterVnetName-$capzVnetName-peering"
+capzMasterPeering="$capzVnetName-$masterVnetName-peering"
+aksCapzPrivateDNSLink="$aksVnetName-capz-dns-link"
+masterCapzPrivateDNSLink="$masterVnetName-capz-dns-link"
+capzPrivateDNSLink="$capzVnetName-dns-link"
+capzIngControllerName="capz-nginx-ing"
+capzIngControllerNSName="capz-nginx-ing-ns"
+capzIngControllerFileName="internal-ingress"
+capzPrivateDNSZoneName="$capzClusterName.capz.io"
+privateDNSZoneName="internal.<dns-name>"
+capzACRName=""
+capzKeyVaultName="capz-workshop-kv"
+baseFolderPath=""
+testFolderPath=""
+
+
+Deploy CAPZ - Worker Cluster
+============================================================================================================
+
+PreConfig
+===================================
+
+Install clusterctl - CAPZ CLI
+==============================
+curl -L https://github.com/kubernetes-sigs/cluster-api/releases/download/v0.3.19/clusterctl-linux-amd64 -o clusterctl
+curl -L https://github.com/kubernetes-sigs/cluster-api/releases/download/v0.3.20/clusterctl-linux-amd64 -o clusterctl
+
+curl -L https://github.com/kubernetes-sigs/cluster-api/releases/download/v0.3.20/clusterctl-darwin-amd64 -o clusterctl
+
+chmod +x ./clusterctl
+sudo mv ./clusterctl /usr/local/bin/
+
+Copy necessary files/folder from Local
+=======================================
+Use FileZilla tool or scp CLI tool
+
+Create SP for CAPZ cluster
+===========================
+az ad sp create-for-rbac --skip-assignment --name http://k8s-capz-sp
+{
+  "appId": "",
+  "displayName": "k8s-capz-sp",
+  "name": "http://k8s-capz-sp",
+  "password": "",
+  "tenant": ""
+}
+
+capzSPAppId="<appId>>"
+capzSPPassword="<password>>"
+
+Create Network and Role assignment
+=======================================
+
+az network vnet create -n $capzVnetName -g $capzResourceGroup --address-prefixes $capzVnetPrefix
+capzVnetId=$(az network vnet show -n $capzVnetName -g $capzResourceGroup --query="id" -o tsv)
+echo $capzVnetId
+
+az network vnet subnet create -n $capzMasterSubnetName --vnet-name $capzVnetName -g $capzResourceGroup --address-prefixes $capzMasterSubnetPrefix
+capzMasterSubnetId=$(az network vnet subnet show -n $capzMasterSubnetName --vnet-name $capzVnetName -g $capzResourceGroup --query="id" -o tsv)
+echo $capzMasterSubnetId
+
+az network vnet subnet create -n $capzWorkerSubnetName --vnet-name $capzVnetName -g $capzResourceGroup --address-prefixes $capzWorkerSubnetPrefix
+capzWorkerSubnetId=$(az network vnet subnet show -n $capzWorkerSubnetName --vnet-name $capzVnetName -g $capzResourceGroup --query="id" -o tsv)
+echo $capzWorkerSubnetId
+
+az network vnet subnet create -n $capzIngressSubnetName --vnet-name $capzVnetName -g $capzResourceGroup --address-prefixes $capzIngressSubnetPrefix
+capzIngressSubnetId=$(az network vnet subnet show -n $capzIngressSubnetName --vnet-name $capzVnetName -g $capzResourceGroup --query="id" -o tsv)
+echo $capzIngressSubnetId
+
+az network vnet subnet create -n $capzAppgwSubnetName --vnet-name $capzVnetName -g $capzResourceGroup --address-prefixes $capzAppgwSubnetPrefix
+capzAppgwSubnetId=$(az network vnet subnet show -n $capzAppgwSubnetName --vnet-name $capzVnetName -g $capzResourceGroup --query="id" -o tsv)
+echo $capzAppgwSubnetId
+
+az role assignment create --assignee $capzSPAppId --role "Network Contributor" --scope $capzVnetId
+az role assignment create --assignee $capzSPAppId --role "Contributor" --scope "/subscriptions/$subscriptionId"
+
+az network vnet peering create -g $capzResourceGroup --remote-vnet $aksVnetId --vnet-name $capzVnetName -n $capzAksPeering --allow-vnet-access
+az network vnet peering create -g $aksResourceGroup --remote-vnet $capzVnetId --vnet-name $aksVnetName -n $aksCapzPeering --allow-vnet-access
+
+masterVNetId=$(az network vnet show -n $masterVnetName -g $masterResourceGroup --query="id" -o tsv)
+az network vnet peering create -g $capzResourceGroup --remote-vnet $masterVNetId --vnet-name $capzVnetName -n $capzMasterPeering --allow-vnet-access
+az network vnet peering create -g $masterResourceGroup --remote-vnet $capzVnetId --vnet-name $masterVnetName -n $masterCapzPeering --allow-vnet-access
+
+NSG for controlPlane VNET (Needed for Custom VNet options - Public and Private cluster both)
+=========================================================================================================
+az network nsg create -n $capzMasterNSGName -g $capzResourceGroup
+az network nsg rule create -n "allow_ssh" --nsg-name $capzMasterNSGName -g $capzResourceGroup --priority 100 --access "Allow" --direction "InBound" --source-address-prefixes "*" --source-port-ranges "*" --destination-address-prefixes "*" --destination-port-ranges "22" --description "Allow SSH"
+az network nsg rule create -n "allow_apiserver" --nsg-name $capzMasterNSGName -g $capzResourceGroup --priority 101 --access "Allow" --direction "InBound" --source-address-prefixes "*" --source-port-ranges "*" --destination-address-prefixes "*" --destination-port-ranges "6443" --description "Allow K8s API Server"
+az network nsg rule create -n "allow_coredns"  --nsg-name $capzMasterNSGName -g $capzResourceGroup --access "Allow" --direction "Inbound" --priority 102 --destination-port-ranges 8181 --description "Allow CoreDNS"
+az network vnet subnet update -g $capzResourceGroup -n $capzMasterSubnetName --vnet-name $capzVnetName --network-security-group $capzMasterNSGName
+
+az network nsg create -n $capzWorkerNSGName -g $capzResourceGroup
+az network vnet subnet update -g $capzResourceGroup -n $capzWorkerSubnetName --vnet-name $capzVnetName --network-security-group $capzWorkerNSGName
+
+CAPZ Private DNS Zone
+===================================
+az network private-dns zone create -n $capzPrivateDNSZoneName -g $capzResourceGroup
+capzPrivateDNSZoneId=$(az network private-dns zone show -g $capzResourceGroup -n $capzPrivateDNSZoneName --query="id" -o tsv)
+
+az network private-dns link vnet create -g $capzResourceGroup -n $aksCapzPrivateDNSLink -z $capzPrivateDNSZoneName -v $aksVnetId -e false
+az network private-dns link vnet create -g $capzResourceGroup -n $masterCapzPrivateDNSLink -z $capzPrivateDNSZoneName -v $masterVNetId -e false
+#az network private-dns link vnet create -g $capzResourceGroup -n $capzPrivateDNSLink -z $capzPrivateDNSZoneName -v $capzVnetId -e false
+
+Create ACR and Role assignment
+===============================
+az acr create -n $capzACRName -g $capzResourceGroup --sku Standard --admin-enabled false
+acrId=$(az acr show -n $capzACRName -g $capzResourceGroup --query="id" -o tsv)
+az role assignment create --role=AcrPull --assignee=$capzSPAppId --scope=$acrId
+
+Import Test images into ACR
+=================================
+az acr import -n $capzACRName --source docker.io/library/nginx:alpine -t nginx:alpine
+
+Create KeyVault and Access Policy
+====================================
+az keyvault create -n $capzKeyVaultName -g $capzResourceGroup --sku Standard
+objectId=$(az ad user show --id modatta@microsoft.com --query="objectId" -o tsv)
+
+az keyvault set-policy -n $capzKeyVaultName -g $capzResourceGroup --key-permissions get list update create delete \
+--secret-permissions get list set delete --certificate-permissions get list update create delete \
+--object-id $objectId
+
+keyvaultId=$(az keyvault show -n $capzKeyVaultName -g $capzResourceGroup --query="id" -o tsv)
+
+
+Setup
+====================================================
+
+ENV variables needed by CAPZ installation
+===========================================
+export AZURE_SUBSCRIPTION_ID=$subscriptionId
+export AZURE_TENANT_ID=$tenantId
+export AZURE_CLIENT_ID=$capzSPAppId
+export AZURE_CLIENT_SECRET=$capzSPPassword
+export AZURE_ENVIRONMENT="AzurePublicCloud"
+export AZURE_CONTROL_PLANE_MACHINE_TYPE="Standard_D2s_v3"
+export AZURE_NODE_MACHINE_TYPE="Standard_D4s_v3"
+export AZURE_LOCATION="eastus"
+
+export AZURE_SUBSCRIPTION_ID_B64="$(echo -n "$AZURE_SUBSCRIPTION_ID" | base64 | tr -d '\n')"
+export AZURE_TENANT_ID_B64="$(echo -n "$AZURE_TENANT_ID" | base64 | tr -d '\n')"
+export AZURE_CLIENT_ID_B64="$(echo -n "$AZURE_CLIENT_ID" | base64 | tr -d '\n')"
+export AZURE_CLIENT_SECRET_B64="$(echo -n "$AZURE_CLIENT_SECRET" | base64 | tr -d '\n')"
+
+export AZURE_CLUSTER_IDENTITY_SECRET_NAME="cluster-identity-secret"
+export CLUSTER_IDENTITY_NAME="cluster-identity"
+export AZURE_CLUSTER_IDENTITY_SECRET_NAMESPACE="default"
+
+k create secret generic "${AZURE_CLUSTER_IDENTITY_SECRET_NAME}" --from-literal=clientSecret="${AZURE_CLIENT_SECRET}"
+
+# SP role assignment
+az role assignment create --role=Contributor --assignee=$capzSPAppId --scope=/subscriptions/$AZURE_SUBSCRIPTION_ID
+
+# Resource Group
+az group create -l eastus -n $capzResourceGroup --subscription $subscriptionId
+
+# Initialize the Azure Provider
+clusterctl init --infrastructure azure
+
+# https://github.com/kubernetes-sigs/cluster-api-provider-azure/issues/1479 (Fixed in 3.20)
+# clusterctl init --infrastructure azure -b kubeadm:v0.3.19 -c kubeadm:v0.3.19 --core cluster-api:v0.3.19
+
+# Delete the Azure Provider
+#clusterctl delete --infrastructure azure
+
+# Workload cluster (Public or Private)
+clusterctl generate cluster $capzClusterName --kubernetes-version v1.22.4 --control-plane-machine-count=1 \
+--worker-machine-count=2 > capz-k8s-cluster-public.yaml
+
+k apply -f ./capz-k8s-cluster-public.yaml
+#k delete -f capz-k8s-cluster.yaml
+
+# Delete Worker Cluster
+#k delete cluster $capzClusterName
+
+# Check status of Workload cluster
+k get cluster --all-namespaces
+clusterctl describe cluster capz-k8s-cluster
+k get kubeadmcontrolplane --all-namespaces
+k get Machine -A
+
+k logs -f deploy/capz-controller-manager -n capz-system
+k get azuremachines
+#az vm boot-diagnostics get-boot-log --name <machine_name> --resource-group capz-k8s-rg
+
+apiServer=$(k get azurecluster capz-k8s-cluster -o jsonpath='{.spec.controlPlaneEndpoint.host}')
+echo $apiServer
+
+PostConfig
+====================================================
+
+# Get kubeconfig for CAPZ installation
+clusterctl get kubeconfig $capzClusterName > capz-k8s-cluster.kubeconfig
+alias k-capz="k --kubeconfig=$baseFolderPath/Setup/capz-k8s-cluster.kubeconfig"
+alias helm-capz="helm --kubeconfig=$baseFolderPath/Setup/capz-k8s-cluster.kubeconfig"
+
+# Install Calico n/w plugin
+k-capz apply -f https://raw.githubusercontent.com/kubernetes-sigs/cluster-api-provider-azure/master/templates/addons/calico.yaml
+
+# Add cluster Admin User, Context and make it the Current one
+k-capz config set-context $capzClusterName-admin@$capzClusterName --user $capzClusterName-admin \
+--cluster $capzClusterName
+k-capz config use-context $capzClusterName-admin@$capzClusterName
+
+====================================================
+
+# Deploy Application Gateway
+./capz-config-appgw.ps1 `
+-e2eSSL "true" `
+-capzResourceGroup $capzResourceGroup `
+-keyVaultName $capzKeyVaultName `
+-httpsListeners @('capz-dev','capz-qa','capz-smoke') `
+-httpListeners @('capz-dev','capz-qa') `
+-appgwName $appgwName `
+-appgwVNetName  $appgwVNetName `
+-appgwSubnetName $appgwSubnetName `
+-appgwTemplateFileName $appgwTemplateFileName `
+-backendIpAddress 16.0.2.100 `
+-backendPoolHostName ".internal.<dns-name>" `
+-listenerHostName ".<dns-name>" `
+-healthProbeHostName "capz-smoke.internal.<dns-name>" `
+-healthProbePath "/nginx" `
+-baseFolderPath $baseFolderPath
+
+# Prepare Azure Private DNS Zone
+az network private-dns zone create -n $privateDNSZoneName -g $masterResourceGroup
+privateDNSZoneId=$(az network private-dns zone show -g $masterResourceGroup -n $privateDNSZoneName --query="id" -o tsv)
+
+az network private-dns record-set a create -n capz-dev -g $masterResourceGroup --zone-name $privateDNSZoneName
+az network private-dns record-set a add-record -a "16.0.2.100" -n capz-dev \
+-g $masterResourceGroup -z $privateDNSZoneName
+
+az network private-dns record-set a create -n capz-qa -g $masterResourceGroup --zone-name $privateDNSZoneName
+az network private-dns record-set a add-record -a "16.0.2.100" -n capz-qa \
+-g $masterResourceGroup -z $privateDNSZoneName
+
+az network private-dns record-set a create -n capz-smoke -g $masterResourceGroup --zone-name $privateDNSZoneName
+az network private-dns record-set a add-record -a "16.0.2.100" -n capz-smoke \
+-g $masterResourceGroup -z $privateDNSZoneName
+
+az network private-dns link vnet create -g $masterResourceGroup -n $capzPrivateDNSLink -z $privateDNSZoneName -v $capzVnetId -e false
+
+
+# Connect to the Cluster
+k-capz config get-contexts
+k-capz get no
+k-capz get po
+
+# Label Nodes
+k-capz label node/<node-name> agentpool=capzsyspool --overwrite
+k-capz label node/<node-name> agentpool=capzsyspool --overwrite
+
+# Create Namespaces
+k-capz create ns db
+k-capz create ns capz-workshop-dev
+k-capz create ns capz-workshop-qa
+k-capz create ns $capzIngControllerNSName
+k-capz create ns smoke
+
+# Create Other Users - 1 CA, 1 Architect/Manager, 1 Developer
+k-capz create sa capz-ca-sa
+k-capz create sa capz-manager-sa
+k-capz create sa capz-developer-sa
+k-capz config get-contexts
+
+k-capz get secrets
+
+# Set Cluster Admin Context
+k-capz get secrets/<capz-ca-sa-secret_name> -o yaml
+token=$(echo <val> | base64 --decode)
+k-capz config set-credentials capz-ca-sa --token=$token
+k-capz config set-context capz-ca-sa-context --user capz-ca-sa --cluster $capzClusterName
+
+# Switch to Cluster Admin context
+k-capz config use-context capz-ca-sa-context
+
+# Set Manager Context
+k-capz get secrets/<capz-manager-sa-secret_name> -o yaml
+token2=$(echo <val> | base64 --decode)
+k-capz config set-credentials capz-manager-sa --token=$token2
+k-capz config set-context capz-manager-sa-context --user capz-manager-sa --cluster $capzClusterName
+
+# Switch to Manager context
+k-capz config use-context capz-manager-sa-context
+
+# Set Developer Context
+k-capz get secrets/<capz-developer-sa-secret_name> -o yaml
+token3=$(echo <val> | base64 --decode)
+k-capz config set-credentials capz-developer-sa --token=$token3
+k-capz config set-context capz-developer-sa-context --user capz-developer-sa --cluster $capzClusterName
+
+# Switch to Developer context
+k-capz config use-context capz-developer-sa-context
+
+# Deploy Storage class
+helm create sc-chart
+helm-capz install sc-chart -n default $baseFolderPath/Helms/sc-chart/ -f $baseFolderPath/Helms/sc-chart/values.yaml
+#helm-capz upgrade sc-chart -n default $baseFolderPath/Helms/sc-chart/ -f $baseFolderPath/Helms/sc-ch  art/values.yaml
+#helm-capz uninstall sc-chart -n default
+
+# Deploy Nginx Ingress Controller as ILB
+helm-capz install $capzIngControllerName ingress-nginx/ingress-nginx -n $capzIngControllerNSName -f $baseFolderPath/Common/$capzIngControllerFileName.yaml
+# helm-capz uninstall $capzIngControllerName -n $capzIngControllerNSName
+
+# Deploy RBAC - DEV, QA, Smoke
+helm-capz create rbac-chart
+
+helm-capz install rbac-chart -n capz-workshop-dev $baseFolderPath/Helms/rbac-chart/ -f $baseFolderPath/Helms/rbac-chart/values-dev.yaml
+helm-capz install rbac-chart -n capz-workshop-qa $baseFolderPath/Helms/rbac-chart/ -f $baseFolderPath/Helms/rbac-chart/values-qa.yaml
+helm-capz upgrade rbac-chart -n capz-workshop-qa $baseFolderPath/Helms/rbac-chart/ -f $baseFolderPath/Helms/rbac-chart/values-qa.yaml
+
+helm-capz install rbac-chart -n smoke $baseFolderPath/Helms/rbac-chart/ -f $baseFolderPath/Helms/rbac-chart/values-smoke.yaml
+helm-capz upgrade rbac-chart -n smoke $baseFolderPath/Helms/rbac-chart/ -f $baseFolderPath/Helms/rbac-chart/values-smoke.yaml
+
+#helm-capz -n capz-workshop-dev uninstall rbac-chart
+#helm-capz -n capz-workshop-qa uninstall rbac-chart
+#helm-capz -n smoke uninstall rbac-chart
+
+# Deploy Ingress - DEV, QA, Smoke
+helm-capz create ingress-chart
+
+k-capz create secret tls capz-workshop-tls-secret -n capz-workshop-dev --cert="$baseFolderPath/Certs/<cert-name>.pem" --key="$baseFolderPath/Certs/star.internal.<dns-name>.key"
+helm-capz install ingress-chart -n capz-workshop-dev $baseFolderPath/Helms/ingress-chart/ -f $baseFolderPath/Helms/ingress-chart/values-dev.yaml
+helm-capz upgrade ingress-chart -n capz-workshop-dev $baseFolderPath/Helms/ingress-chart/ -f $baseFolderPath/Helms/ingress-chart/values-dev.yaml
+helm-capz install ingress-chart -n capz-workshop-dev $baseFolderPath/Helms/ingress-chart/ -f $baseFolderPath/Helms/ingress-chart/values-dev-tls.yaml
+helm-capz upgrade ingress-chart -n capz-workshop-dev $baseFolderPath/Helms/ingress-chart/ -f $baseFolderPath/Helms/ingress-chart/values-dev-tls.yaml
+
+k-capz create secret tls capz-workshop-tls-secret -n capz-workshop-qa --cert="$baseFolderPath/Certs/<cert-name>.pem" --key="$baseFolderPath/Certs/star.internal.<dns-name>.key"
+helm-capz install ingress-chart -n capz-workshop-qa $baseFolderPath/Helms/ingress-chart/ -f $baseFolderPath/Helms/ingress-chart/values-qa.yaml
+helm-capz upgrade ingress-chart -n capz-workshop-qa $baseFolderPath/Helms/ingress-chart/ -f $baseFolderPath/Helms/ingress-chart/values-qa.yaml
+helm-capz install ingress-chart -n capz-workshop-qa $baseFolderPath/Helms/ingress-chart/ -f $baseFolderPath/Helms/ingress-chart/values-qa-tls.yaml
+helm-capz upgrade ingress-chart -n capz-workshop-qa $baseFolderPath/Helms/ingress-chart/ -f $baseFolderPath/Helms/ingress-chart/values-qa-tls.yaml
+
+k-capz create secret tls capz-workshop-tls-secret -n smoke --cert="$baseFolderPath/Certs/<cert-name>.pem" --key="$baseFolderPath/Certs/star.internal.<dns-name>.key"
+helm-capz install ingress-chart -n smoke $baseFolderPath/Helms/ingress-chart/ -f $baseFolderPath/Helms/ingress-chart/values-smoke.yaml
+helm-capz upgrade ingress-chart -n smoke $baseFolderPath/Helms/ingress-chart/ -f $baseFolderPath/Helms/ingress-chart/values-smoke.yaml
+helm-capz install ingress-chart -n smoke $baseFolderPath/Helms/ingress-chart/ -f $baseFolderPath/Helms/ingress-chart/values-smoke-tls.yaml
+helm-capz upgrade ingress-chart -n smoke $baseFolderPath/Helms/ingress-chart/ -f $baseFolderPath/Helms/ingress-chart/values-smoke-tls.yaml
+
+#helm-capz -n capz-workshop-dev uninstall ingress-chart
+#helm-capz -n capz-workshop-qa uninstall ingress-chart
+#helm-capz -n smoke uninstall ingress-chart
+
+# Deploy PV for MongoDB
+helm create pv-chart
+
+helm-capz install pv-mongo-chart -n default $baseFolderPath/Helms/pv-chart/ -f $baseFolderPath/Helms/pv-chart/values-disk.yaml
+helm-capz upgrade pv-mongo-chart -n default $baseFolderPath/Helms/pv-chart/ -f $baseFolderPath/Helms/pv-chart/values-disk.yaml
+
+helm-capz -n default uninstall pv-mongo-chart
+
+# Create Secrets for ACR - DEV, QA, Smoke
+k-capz create secret docker-registry capz-acr-secret -n capz-workshop-dev --docker-server=$capzACRName.azurecr.io --docker-username=$capzSPAppId --docker-password=$capzSPPassword
+k-capz create secret docker-registry capz-acr-secret -n capz-workshop-qa --docker-server=$capzACRName.azurecr.io --docker-username=$capzSPAppId --docker-password=$capzSPPassword
+k-capz create secret docker-registry capz-acr-secret -n smoke --docker-server=$capzACRName.azurecr.io --docker-username=$capzSPAppId --docker-password=$capzSPPassword
+
+# Install Smoke chart - Smoke Namespace
+helm-capz install smoke-chart -n smoke $testFolderPath/Helms/smoke-chart/ -f $testFolderPath/Helms/smoke-chart/values-smoke.yaml
+helm-capz upgrade smoke-chart -n smoke $testFolderPath/Helms/smoke-chart/ -f $testFolderPath/Helms/smoke-chart/values-smoke.yaml
+#helm-capz -n smoke uninstall smoke-chart
+
+==========================================================================================

@@ -1,6 +1,6 @@
 apiVersion: v2
-name: pv-chart
-description: A Helm chart for PersistentVolume for K8s
+name: sc-chart
+description: A Helm chart for StorageClass for K8s
 
 # A chart can be either an 'application' or a 'library' chart.
 #

@@ -10,12 +10,12 @@ deployment:
   maxSurge: 1
   maxUnavailable: 0
   nodeSelector:
-    agentpool: capzapipool
+    agentpool: capzsyspool
   imagePullSecrets:
   - name: capz-acr-secret
   containers:
   - name: nginx-app
-    image: capzacr.azurecr.io/nginx:alpine
+    image: <acr>.azurecr.io/nginx:alpine
     imagePullPolicy: IfNotPresent
     memoryRequest: "250Mi"
     cpuRequest: "100m"

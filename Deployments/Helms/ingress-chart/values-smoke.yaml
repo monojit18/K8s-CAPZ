@@ -6,7 +6,7 @@ ingress:
    enableCors: "true"
    rewriteTarget: /$1
   hosts:
-  - name: capz-smoke.internal.wkshpdev.com
+  - name: capz-smoke.internal.<dns-name>
     paths:
     - path: /nginx/?(.*)
       service: nginx-svc

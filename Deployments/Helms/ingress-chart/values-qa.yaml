@@ -7,7 +7,7 @@ ingress:
     enableCors: "true"
     rewriteTarget: /$1
   hosts:
-  - name: capz-qa.internal.wkshpdev.com
+  - name: capz-qa.internal.<dns-name>
     paths:
     - path: /?(.*)
       service: ratingsweb-service

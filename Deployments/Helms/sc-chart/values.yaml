@@ -1,0 +1,6 @@
+storageClass:
+  name: managed-premium
+  provisioner: kubernetes.io/azure-disk
+  storageaccounttype: Premium_LRS
+  cachingmode: ReadOnly
+  volumeBindingMode: WaitForFirstConsumer

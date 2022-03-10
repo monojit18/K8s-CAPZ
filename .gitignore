@@ -9,3 +9,4 @@ Deployments/Setup/capz-workshop-cluster.kubeconfig
 Deployments/Setup/capz-workshop-cluster.kubeconfig
 Deployments/Setup/log.txt
 .vscode/settings.json
+Deployments/Setup/capz-k8s-cluster-public.yaml
