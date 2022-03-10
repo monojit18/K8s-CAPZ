@@ -37,24 +37,37 @@ The supporting infrastructure on Azure for K8s cluster - like Virtual Machines, 
 
 - Worker Nodes, Number of Pods and Pod sizes as well.
 
-- This article uses a /24 Subnet for Master Nodes and 
+- This article uses a /24 Subnet for Master Nodes and a /24 Subnet for Worker Nodes
 
   
 
 #### Master Plane
 
+- Consists of Master Nodes
+- This article uses 1 Node Master Plane - **Standard_DS2_V2**
+
 #### Worker Plane
 
-
+- Consists of Worker Nodes
+- This article uses 2 Node Worker Plane - **Standard_DS2_V2**
 
 ## What are we going to build
 
-- Deploy a simple, light-weight AKS cluster on as the Management cluster
+- Deploy a simple, light-weight AKS cluster as the Management cluster
+
 - Create necessary infrastructure for the CAPZ K8s cluster
+
 - Deploy an unmanaged K8s cluster on Azure using CAPZ templates
+
 - Secure the K8s cluster with Ingress Controller as Internal Load Balancer
+
 - Deploy one Frontend application (viz. *RatingsWeb*), one Backend application (viz. *RatinsgAPI*) and a MongoDB instance all in this K8s cluster
+
 - Test the flow end to end
+
+  
+
+![capz-deploy-apis](./Assets/capz-deploy-apis.png)
 
 
 
@@ -484,7 +497,12 @@ helm-capz install ingress-chart -n smoke $baseFolderPath/Helms/ingress-chart/ -f
 
 #### Deploy & Configure Application Gateway
 
-Backend pool points to Private IP of Ingress Controller
+- Deploy Application Gateway either from Portal or through ARM/Bicep template
+- This article does not provide details of how to configure Application Gateway to work with K8s cluster in the backend
+- Please refer these links for a detailed discussion
+  - [Secure APIs on Azure with AKS and Application Gateway](https://codemongers.wordpress.com/2021/08/11/secure-apis-on-azure-with-aks-and-application-gateway/)
+  - [Secure Microservices in AKS with APIM and Application Gateway](https://codemongers.wordpress.com/2022/01/28/secure-microservices-in-aks-with-apim-and-application-gateway/)
+- Backend pool points to Private IP of Ingress Controller
 
 ![capz-appgw-bkpool](./Assets/capz-appgw-bkpool.png)
 
@@ -504,11 +522,58 @@ helm-capz install smoke-chart -n smoke $testFolderPath/Helms/smoke-chart/ -f $te
 
 ##### Ratings
 
+###### Ratings API
+
+```bash
+# Clone Source code on local environment
+git clone https://github.com/monojit18/mslearn-aks-workshop-ratings-api.git
+
+# Bulid and Push dokcer image to ACR
+az acr build -t $capzACRName.azurecr.io/ratings-api:v1.0.0 -r $capzACRName .
+
+# Deploy MongoDB container
+helm-capz repo add bitnami https://charts.bitnami.com/bitnami
+
+helm-capz install ratingsdb bitnami/mongodb -n db \
+--set auth.username=ratingsuser,auth.password=ratingspwd,auth.database=ratingsdb \
+--set controller.nodeSelector.agentpool=capzsyspool \
+--set controller.defaultBackend.nodeSelector.agentpool=capzsyspool \
+--set persistence.storageClass=managed-premium
+
+# Deploy Ratings Api
+k-capz create secret generic capz-workshop-mongo-secret -n capz-workshop-dev \
+--from-literal=MONGOCONNECTION="mongodb://ratingsuser:ratingspwd@ratingsdb-mongodb.db:27017/ratingsdb"
+
+helm-capz install ratingsapi-chart -n capz-workshop-dev ./ratingsapi-chart/ -f ./ratingsapi-chart/CAPZ/values-dev.yaml
+
 ```
 
+###### Ratings Web
+
+```bash
+# Clone Source code on local environment
+git clone https://github.com/monojit18/mslearn-aks-workshop-ratings-web.git
+
+# Bulid and Push dokcer image to ACR
+az acr build -t $capzACRName.azurecr.io/ratings-web:v1.0.0 -r $capzACRName .
+
+helm-capz install ratingsweb-chart -n capz-workshop-dev ./ratingsweb-chart/ -f ./ratingsweb-chart/CAPZ/values-dev.yaml
+
+```
+
+
+
+### Test
+
+```bash
+In Browser: http(s)://<application-gateway-public-ip-domain-name>/
 ```
 
 
 
 ### Cleanup
+
+```bash
+kubectl delete cluster $capzClusterName
+```
 
