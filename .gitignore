@@ -8,3 +8,4 @@ Deployments/Setup/capz-workshop-cluster.kubeconfig
 *.kubeconfig
 Deployments/Setup/capz-workshop-cluster.kubeconfig
 Deployments/Setup/log.txt
+.vscode/settings.json
