@@ -5,7 +5,7 @@
         "rootCertData": {
           "reference": {
               "keyVault": {
-                  "id": "/subscriptions/6bdcc705-8db6-4029-953a-e749070e6db6/resourceGroups/capz-workshop-rg/providers/Microsoft.KeyVault/vaults/capz-workshop-kv"
+                  "id": "/subscriptions/<subscription-id>/resourceGroups/capz-workshop-rg/providers/Microsoft.KeyVault/vaults/capz-workshop-kv"
                 },
             "secretName": "capz-workshop-appgw-root-cert-secret"
         }
@@ -13,7 +13,7 @@
         "certData": {
           "reference": {
               "keyVault": {
-                  "id": "/subscriptions/6bdcc705-8db6-4029-953a-e749070e6db6/resourceGroups/capz-workshop-rg/providers/Microsoft.KeyVault/vaults/capz-workshop-kv"
+                  "id": "/subscriptions/<subscription-id>/resourceGroups/capz-workshop-rg/providers/Microsoft.KeyVault/vaults/capz-workshop-kv"
                 },
             "secretName": "capz-workshop-cluster-secret"
         }
@@ -21,7 +21,7 @@
       "certPassword": {
           "reference": {
               "keyVault": {
-                  "id": "/subscriptions/6bdcc705-8db6-4029-953a-e749070e6db6/resourceGroups/capz-workshop-rg/providers/Microsoft.KeyVault/vaults/capz-workshop-kv"
+                  "id": "/subscriptions/<subscription-id>/resourceGroups/capz-workshop-rg/providers/Microsoft.KeyVault/vaults/capz-workshop-kv"
                 },
             "secretName": "capz-workshop-cluster-secret-password"
         }
